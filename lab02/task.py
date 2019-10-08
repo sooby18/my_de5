@@ -11,10 +11,10 @@ from pyspark.sql.functions import split
 from pyspark.sql.functions import from_json
 
 
-topic_in = "name_surname"
+topic_in = "maria_sokolova"
 topic_out = topic_in + "_lab02_out"
 # ! use your own IP
-kafka_bootstrap = "10.0.2.15:6667"
+kafka_bootstrap = "10.0.0.8:6667"
 
 spark = SparkSession.builder.appName("SimpleStreamingApp").getOrCreate()
 spark.sparkContext.setLogLevel('WARN')
