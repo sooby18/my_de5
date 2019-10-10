@@ -44,18 +44,30 @@ schema = StructType(
 st = spark \
   .readStream \
   .format("kafka") \
-  .option("checkpointLocation", "/tmp/checkpoint-read")\
+  .option("checkpointLocation", "tmp/lab02/checkpoint-read")\
   .option("kafka.bootstrap.servers", kafka_bootstrap ) \
   .option("subscribe", topic_in) \
   .option("startingOffsets", "latest") \
   .load() \
   .selectExpr("CAST(value as string)")\
   .select(from_json("value", schema).alias("value"))\
-  .select(F.col("value.*"))\
+  .select(F.col("value.timestamp").alias("timestamp_unix")\
+  ,F.col("value.partyId").alias("partyId")\
+  ,F.col("value.sessionId").alias("sessionId")\
+  ,F.col("value.eventType").alias("eventType")\
+  ,F.col("value.item_price").alias("item_price")\
+  ,F.col("value.detectedDuplicate").alias("detectedDuplicate")\
+  ,F.col("value.detectedCorruption").alias("detectedCorruption")\
+  )\
 
 
 ## Формируем выходной датафрейм.
-out_df = st
+out_df = st.filter("detectedDuplicate='false' and detectedCorruption='false'")
+from pyspark.sql.functions import from_unixtime
+timestamp = from_unixtime(out_df["timestamp_unix"]/1000)
+out_df = out_df.withColumn("timestamp",timestamp)
+
+
 
 out_columns = list(out_df.columns)
 
