@@ -71,10 +71,16 @@ out_df = out_df.withColumn("timestamp",timestamp)
 start_ts = F.window(out_df["timestamp"],"10 minutes","10 minutes")
 out_df = out_df.withColumn("start_ts",start_ts.getField("start")).withColumn("end_ts",start_ts.getField("end"))
 
+out_df = out_df.filter("start_ts > '2018-12-18 10:00:00'")
+
 out_df = out_df.groupBy("start_ts","end_ts")\
         .agg(\
-        F.sum(F.when(F.col("eventType")=="itemBuyEvent",F.col("item_price")))\
+          F.sum(F.when(F.col("eventType")=="itemBuyEvent",F.col("item_price"))).alias("revenue")\
+         ,F.approx_count_distinct(F.col("partyId")).alias("visitors")\
+         ,F.approx_count_distinct(F.when(F.col("eventType")=="itemBuyEvent",F.col("sessionId"))).alias("purchases")\
             )
+
+out_df = out_df.withColumn("aov",F.col("revenue")/F.col("purchases"))
             
 
 #out_df = out_df.groupBy("start_ts")\
