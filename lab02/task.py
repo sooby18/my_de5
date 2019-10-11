@@ -69,9 +69,9 @@ out_df = out_df.withColumn("timestamp",timestamp)
 
 #https://spark.apache.org/docs/2.3.0/structured-streaming-programming-guide.html
 start_ts = F.window(out_df["timestamp"],"10 minutes","10 minutes")
-out_df = out_df.withColumn("start_ts",start_ts.getField("start")).withColumn("end_ts",start_ts.getField("end"))
+out_df = out_df.withColumn("start_ts",F.unix_timestamp(start_ts.getField("start"))).withColumn("end_ts",F.unix_timestamp(start_ts.getField("end")))
 
-out_df = out_df.filter("start_ts > '2018-12-18 10:00:00'")
+#out_df = out_df.filter("start_ts > '2018-12-18 10:00:00'")
 
 out_df = out_df.groupBy("start_ts","end_ts")\
         .agg(\
