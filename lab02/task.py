@@ -66,10 +66,16 @@ out_df = st.filter("detectedDuplicate='false' and detectedCorruption='false'")
 from pyspark.sql.functions import from_unixtime
 timestamp = from_unixtime(out_df["timestamp_unix"]/1000)
 out_df = out_df.withColumn("timestamp",timestamp)
-start_ts = F.to_timestamp(F.concat(F.substring(F.expr("cast(timestamp as string)"),1,15) , F.lit("0:00")))
-out_df = out_df.withColumn("start_ts", start_ts)
-end_ts = F.to_timestamp(F.concat(F.substring(F.expr("cast(timestamp as string)"),1,15) , F.lit("9:59")))
-out_df = out_df.withColumn("end_ts", end_ts)
+
+#https://spark.apache.org/docs/2.3.0/structured-streaming-programming-guide.html
+start_ts = F.window(out_df["timestamp"],"10 minutes","10 minutes")
+out_df = out_df.withColumn("start_ts",start_ts.getField("start")).withColumn("end_ts",start_ts.getField("end"))
+
+out_df = out_df.groupBy("start_ts","end_ts")\
+        .agg(\
+        F.sum(F.when(F.col("eventType")=="itemBuyEvent",F.col("item_price")))\
+            )
+            
 
 #out_df = out_df.groupBy("start_ts")\
 #                            .agg(\
@@ -84,21 +90,11 @@ out_df = out_df.withColumn("end_ts", end_ts)
 #                                 )\
 #                                 ,"start_ts", "left")
 
+
 out_columns = list(out_df.columns)
+#out_columns = ["start_ts","end_ts","visitors","revenue","purchases","aov"]
 
 query = out_df\
-        .groupBy("start_ts")\
-      .agg(\
-             F.countDistinct("partyId").alias("visitors")\
-            )\
-      .join(\
-             out_df.filter("eventType='itemBuyEvent'").groupBy("start_ts")\
-#                            .agg(F.max("end_ts").alias("end_ts"),\
-#                                 F.sum("item_price").alias("revenue"),\
-#                                 F.countDistinct("sessionId").alias("purchases"),\
-#                                 F.sum("item_price")/F.countDistinct("sessionId")\
-#                                 )\
-#                                 ,"start_ts", "left")    
     .select(F.to_json(F.struct(*out_columns)).alias("value"))\
     .writeStream \
     .outputMode("update")\
