@@ -29,11 +29,11 @@ def get_most_recent_stats_params():
     query = "select {} from {} format JSON".format(fields,table)
     response = requests.get('http://{}:{}/?query={}'.format(clickhouse_host, clickhouse_port, urllib.parse.quote(query)))
     if response.status_code != 200: return response.text
-    parsed = json.loads(response.text,object_pairs_hook=OrderedDict)
+    parsed = json.loads(response.text)
     data = parsed["data"]
     result=""
     for l in data:
-        result=result+"\n" +json.dumps(l,indent=4, sort_keys=False)
+        result=result+"\n" +json.dumps(l,indent=4, sort_keys=True)
     return result
 
 
