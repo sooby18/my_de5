@@ -5,6 +5,8 @@ from pyspark.streaming import StreamingContext
 from pyspark.sql import functions as F
 from pyspark.sql.types import *
 
+from pyspark.sql.functions import explode
+
 from pyspark.sql.functions import from_json
 
 import re
@@ -35,7 +37,10 @@ spark.sparkContext.setLogLevel('WARN')
 schema = StructType(
    fields = [
       StructField("uid", StringType(), True),
-      StructField("visits", ArrayType(StringType()), True)
+      StructField("visits", StructType(
+          (StructField("timestamp", LongType(), True),        
+               StructField("url", StringType(), True)
+      )),True)
 ])
 
 ## Считываем и распаковываем json-сообщения
@@ -54,21 +59,17 @@ st = spark \
   )\
 
 ## Формируем выходной датафрейм.
-urls = st["visits"].getField("url")
 
 url2domain_udf = F.udf(lambda xx: [ url2domain(x) for x in xx],
                    ArrayType(StringType()))
 
-df = st.withColumn("urls",url2domain_udf(urls))
+df = st.withColumn("urls",url2domain_udf(st["visits"].getField("url")))
 
 df = df.select(["uid", "urls"])
 
 df_trans = model_reloaded.transform(df)
 
 out_df = df_trans.select(["uid","urls","gender_age"])
-from pyspark.sql.functions import from_unixtime
-timestamp = from_unixtime(out_df["timestamp_unix"]/1000)
-out_df = out_df.withColumn("timestamp",timestamp)
 
 out_columns = list(out_df.columns)
 
