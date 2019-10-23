@@ -13,6 +13,7 @@ import re
 from urllib.parse import urlparse
 from urllib.request import urlretrieve, unquote
 
+#Преобразование url
 def url2domain(url):
     url = re.sub('(http(s)*://)+', 'http://', url)
     parsed_url = urlparse(unquote(url.strip()))
@@ -21,6 +22,7 @@ def url2domain(url):
     if netloc is not None: return str(netloc.encode('utf8')).strip()
     return None
 
+#Загрузка модели
 from pyspark.ml import PipelineModel
 model_reloaded =  PipelineModel.load("lab04_model")
 
@@ -33,7 +35,7 @@ kafka_bootstrap = "10.0.0.8:6667"
 spark = SparkSession.builder.appName("MLStreamingApp").getOrCreate()
 spark.sparkContext.setLogLevel('WARN')
 
-
+#Структура входящих данных
 schema = StructType(
    fields = [
       StructField("uid", StringType(), True),
@@ -62,15 +64,19 @@ st = spark \
 
 ## Формируем выходной датафрейм.
 
+#UDF
 url2domain_udf = F.udf(lambda xx: [ url2domain(x) for x in xx],
                    ArrayType(StringType()))
-
+#Преобразование массивов url в датафрейме
 df = st.withColumn("urls",url2domain_udf(st["visits"].getField("url")))
 
+#Выбор полей для скармливания в модель
 df = df.select(["uid", "urls"])
 
+#Применение модели к датафрейму
 df_trans = model_reloaded.transform(df)
 
+#Выбор полей для выходного датафрейма
 out_df = df_trans.select(["uid","gender_age"])
 
 out_columns = list(out_df.columns)
