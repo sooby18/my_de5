@@ -25,8 +25,8 @@ from pyspark.ml import PipelineModel
 model_reloaded =  PipelineModel.load("lab04_model")
 
 
-topic_in = "maria_sokolova"
-topic_out = topic_in + "_lab04_out"
+topic_in = "maria_sokolova_lab04_in"
+topic_out = "maria_sokolova_lab04_out"
 # ! use your own IP
 kafka_bootstrap = "10.0.0.8:6667"
 
@@ -37,17 +37,19 @@ spark.sparkContext.setLogLevel('WARN')
 schema = StructType(
    fields = [
       StructField("uid", StringType(), True),
-      StructField("visits", StructType(
-          (StructField("timestamp", LongType(), True),        
+      StructField("visits", ArrayType(
+          StructType([
+               StructField("timestamp", LongType(), True),        
                StructField("url", StringType(), True)
-      )),True)
+               ])
+      ),True)
 ])
 
 ## Считываем и распаковываем json-сообщения
 st = spark \
   .readStream \
   .format("kafka") \
-  .option("checkpointLocation", "tmp/lab02/checkpoint-read")\
+  .option("checkpointLocation", "/tmp/checkpoint-read")\
   .option("kafka.bootstrap.servers", kafka_bootstrap ) \
   .option("subscribe", topic_in) \
   .option("startingOffsets", "latest") \
@@ -69,7 +71,7 @@ df = df.select(["uid", "urls"])
 
 df_trans = model_reloaded.transform(df)
 
-out_df = df_trans.select(["uid","urls","gender_age"])
+out_df = df_trans.select(["uid","gender_age"])
 
 out_columns = list(out_df.columns)
 
